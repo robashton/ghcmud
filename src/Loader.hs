@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Loader (
-  loadDir
+--  loadDir
 ) where
 
 import World
@@ -26,11 +26,9 @@ instance FromJSON RawRoom
 instance FromJSON RawDirection
 
 loadDir :: FilePath -> IO (Either WorldLoadFailure World)
-loadDir dir = createWorld <$> parseRooms
-                          <$> normaliseRoomPaths dir
-                          <$> getDirectoryContents dir
+loadDir dir = createWorld <$> (parseRooms =<< (normaliseRoomPaths dir <$> getDirectoryContents dir))
 
-createWorld :: Either WorldLoadFailure [RawRoom] -> Either WorldLoadFailure World
+createWorld :: (Either WorldLoadFailure [RawRoom]) -> Either WorldLoadFailure World
 createWorld (Left msg) = Left msg
 createWorld _ = Right (buildWorld)
 
@@ -47,5 +45,3 @@ loadRoom file = (transformRoomLoad file) <$> decode <$> B.readFile file
 transformRoomLoad :: FilePath -> Maybe RawRoom -> Either WorldLoadFailure RawRoom
 transformRoomLoad _ (Just room) = Right room
 transformRoomLoad filepath Nothing = Left (WorldLoadFailure ("Failed to load room: " ++ filepath))
-
-
