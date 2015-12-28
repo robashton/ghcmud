@@ -1,0 +1,7 @@
+{
+  "description": "Around you are marshes and mud, a single path winds its way north. To the south your old life is in tatters - you can't return.",
+  "directions": {
+    "north": "northmiddlemarsh"
+  }
+}
+

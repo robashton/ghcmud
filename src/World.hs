@@ -65,7 +65,3 @@ addRoom :: World -> Room -> World
 addRoom world@(World { worldRooms = existingRooms }) room =
   world { worldRooms = (Map.insert (roomId room) room existingRooms) }
 
-
-
-
-
