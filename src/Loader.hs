@@ -17,7 +17,7 @@ import qualified Data.ByteString.Lazy as B
 import qualified Data.Map as Map
 
 data RawDirection = North | West | South | East
-  deriving (Show, Generic)
+  deriving (Eq, Show, Generic)
 
 data RawRoom = RawRoom {
   rawRoomId :: String,
@@ -64,23 +64,24 @@ processRoom coord roomId (output, input) =
     Just room ->
       let inputWithoutRoom = Map.delete roomId input
           outputWithRoom = Map.insert coord (convertRoom room coord) output in
-          (processRightRoom room coord) =<<
-          (processLeftRoom room coord) =<<
-          (processNorthRoom room coord) =<<
-          processSouthRoom room coord (outputWithRoom, inputWithoutRoom)
+          (processSiblingRoom room coord Loader.West) =<<
+          (processSiblingRoom room coord Loader.East) =<<
+          (processSiblingRoom room coord Loader.South) =<<
+          processSiblingRoom room coord Loader.North (outputWithRoom, inputWithoutRoom)
 
-processRightRoom :: RawRoom -> Coordinate -> ((Map.Map Coordinate Room), (Map.Map String RawRoom)) -> Either WorldLoadFailure ((Map.Map Coordinate Room), (Map.Map String RawRoom))
-processRightRoom _ _ _ = Left (WorldLoadFailure "Not Implemented")
+processSiblingRoom :: RawRoom -> Coordinate -> RawDirection -> ((Map.Map Coordinate Room), (Map.Map String RawRoom)) -> Either WorldLoadFailure ((Map.Map Coordinate Room), (Map.Map String RawRoom))
+processSiblingRoom currentRoom currentCoordinate direction (output, input) =
+  case lookup direction (directions currentRoom) of
+    Nothing -> Right (output, input)
+    Just siblingRoomName -> processRoom (adjust currentCoordinate direction) siblingRoomName (output, input)
 
-processLeftRoom :: RawRoom -> Coordinate -> ((Map.Map Coordinate Room), (Map.Map String RawRoom)) -> Either WorldLoadFailure ((Map.Map Coordinate Room), (Map.Map String RawRoom))
-processLeftRoom _ _ _ = Left (WorldLoadFailure "Not Implemented")
 
-processSouthRoom :: RawRoom -> Coordinate -> ((Map.Map Coordinate Room), (Map.Map String RawRoom)) -> Either WorldLoadFailure ((Map.Map Coordinate Room), (Map.Map String RawRoom))
-processSouthRoom _ _ _ = Left (WorldLoadFailure "Not Implemented")
-
-processNorthRoom :: RawRoom -> Coordinate -> ((Map.Map Coordinate Room), (Map.Map String RawRoom)) -> Either WorldLoadFailure ((Map.Map Coordinate Room), (Map.Map String RawRoom))
-processNorthRoom _ _ _ = Left (WorldLoadFailure "Not Implemented")
-
+adjust :: Coordinate -> RawDirection -> Coordinate
+adjust (Coordinate x y) direction
+  | direction == Loader.West = (Coordinate (x-1) y)
+  | direction == Loader.East = (Coordinate (x+1) y)
+  | direction == Loader.South = (Coordinate x (y+1))
+  | direction == Loader.North = (Coordinate x (y-1))
 
 convertRoom :: RawRoom -> Coordinate -> Room
 convertRoom RawRoom { description = desc } coord =
@@ -89,7 +90,6 @@ convertRoom RawRoom { description = desc } coord =
     roomDescription = desc,
     monsters = []
   }
-
 
 parseRooms :: [FilePath] -> IO (Either WorldLoadFailure (Map.Map String RawRoom))
 parseRooms paths = (fmap roomsIntoMap) <$> sequence <$> (sequence $ map loadRoom paths)
