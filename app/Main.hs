@@ -3,6 +3,8 @@ module Main where
 import Loader
 import World
 import Session
+import Parser
+
 import Control.Applicative ((<*>), empty)
 import Control.Monad (liftM)
 
@@ -29,11 +31,23 @@ startGame world =
 errorOut :: String -> IO()
 errorOut msg = print ("Arse, something went tits up, here is a msg about that: " ++ msg)
 
+translateCommandError :: FailFeedback -> String
+translateCommandError RoomDoesNotExist = "There is no room there, doofus"
+
 handleEndReason :: String -> IO()
 handleEndReason = print
 
 handleTextInstruction :: GameState -> String -> Either String (String, GameState)
-handleTextInstruction _ _ = Left "Not implemented yet"
+handleTextInstruction state@(GameState { gameSession = session, gameWorld = world }) command =
+  case parseCommand command of
+    Left _ -> Right ("No idea what you're trying to say here", state)
+    Right instruction -> case processCommand instruction world session of
+                           Left err -> Right (translateCommandError err, state)
+                           Right newSession -> Right (describeCurrentRoom newSession, state { gameSession = newSession })
+
+
+describeCurrentRoom :: Session -> String
+describeCurrentRoom Session { sessionRoom = Room { roomDescription = desc } } = desc
 
 inputLoop :: GameState -> IO()
 inputLoop state =
