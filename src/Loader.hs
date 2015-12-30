@@ -1,9 +1,11 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards  #-}
 
 module Loader (
   loadDir,
-  WorldLoadFailure(WorldLoadFailure)
+  WorldLoadFailure(..)
 ) where
 
 import World
@@ -13,10 +15,11 @@ import System.FilePath
 import GHC.Generics
 import System.Directory
 import Control.Monad
-import Data.Aeson (FromJSON, ToJSON, decode, encode)
+import Data.Aeson
 
 import qualified Data.ByteString.Lazy as B
 import qualified Data.Map as Map
+import Control.Applicative ((<*>), empty)
 
 data RawDirection = North | West | South | East
   deriving (Ord, Eq, Show, Generic)
@@ -32,8 +35,16 @@ data RawRoom = RawRoom {
 
 data WorldLoadFailure = WorldLoadFailure String
 
-instance FromJSON RawRoom
-instance FromJSON RawDirection
+instance FromJSON RawRoom where
+  parseJSON = withObject "rawroom" $
+    \obj -> do
+      rawRoomId <- obj .:? "rawRoomId" .!= "unknown"
+      description <- obj .: "description"
+      north <- obj .:? "north"
+      east <- obj .:? "east"
+      south <- obj .:? "south"
+      west <- obj .:? "west"
+      return RawRoom {..}
 
 loadDir :: FilePath -> IO (Either WorldLoadFailure World)
 loadDir dir = liftM (>>= createWorld) $ (fullRoomPaths dir) >>= parseRooms -- with apologies to @bitemyapp
@@ -49,7 +60,9 @@ createWorld :: (Map.Map String RawRoom) -> Either WorldLoadFailure World
 createWorld input = worldFromRooms <$> convertRooms input
 
 worldFromRooms :: (Map.Map Coordinate Room) -> World
-worldFromRooms _ = buildWorld
+worldFromRooms rooms = World { worldRooms = rooms }
+
+newtype BuilderState = BuilderState ((Map.Map Coordinate Room), (Map.Map String RawRoom))
 
 convertRooms :: (Map.Map String RawRoom) -> Either WorldLoadFailure (Map.Map Coordinate Room)
 convertRooms rooms = case headMay $ Map.toList rooms of
@@ -62,12 +75,14 @@ finaliseConversion (BuilderState (output, input))
   | Map.null input = Right output
   | otherwise = Left (WorldLoadFailure "Rooms left after traversing world!")
 
-newtype BuilderState = BuilderState ((Map.Map Coordinate Room), (Map.Map String RawRoom))
 
 processRoom :: Coordinate -> String -> BuilderState -> Either WorldLoadFailure BuilderState
 processRoom coord roomId (BuilderState (output, input)) =
   case Map.lookup roomId input of
-    Nothing -> Left (WorldLoadFailure ("Couldn't find " ++ roomId ++ " in world"))
+    Nothing ->
+      case Map.lookup coord output of
+        Nothing -> Left (WorldLoadFailure ("Couldn't find " ++ roomId ++ " in world"))
+        Just _room -> Right (BuilderState (output, input))
     Just room ->
       let inputWithoutRoom = Map.delete roomId input
           outputWithRoom = Map.insert coord (convertRoom room coord) output in
@@ -76,17 +91,17 @@ processRoom coord roomId (BuilderState (output, input)) =
           (processSiblingRoom room coord Loader.South) =<<
           processSiblingRoom room coord Loader.North (BuilderState (outputWithRoom, inputWithoutRoom))
 
-
 processSiblingRoom :: RawRoom -> Coordinate -> RawDirection -> BuilderState -> Either WorldLoadFailure BuilderState
 processSiblingRoom currentRoom currentCoordinate direction (BuilderState (output, input)) =
-  let fn = case direction of
-            Loader.West -> Loader.west
-            Loader.East -> Loader.east
-            Loader.South -> Loader.south
-            Loader.North -> Loader.north in
-              case (fn currentRoom) of
-                Nothing -> Right $ BuilderState (output, input)
-                Just siblingRoomName -> processRoom (adjust currentCoordinate direction) siblingRoomName $ BuilderState (output, input)
+  case ((directionToFn direction) currentRoom) of
+    Nothing -> Right $ BuilderState (output, input)
+    Just siblingRoomName -> processRoom (adjust currentCoordinate direction) siblingRoomName $ BuilderState (output, input)
+
+directionToFn :: RawDirection -> (RawRoom -> Maybe String)
+directionToFn Loader.West = Loader.west
+directionToFn Loader.East = Loader.east
+directionToFn Loader.South = Loader.south
+directionToFn Loader.North = Loader.north
 
 adjust :: Coordinate -> RawDirection -> Coordinate
 adjust (Coordinate x y) direction
@@ -110,8 +125,8 @@ roomsIntoMap rooms = Map.fromList $ map intoPair rooms
                                     where intoPair room@(RawRoom { rawRoomId = roomId }) = ( roomId, room )
 
 loadRoom :: FilePath -> IO (Either WorldLoadFailure RawRoom)
-loadRoom file = (maybeToEither file) <$> decode <$> B.readFile file
+loadRoom file = (addRoomId file) <$> decode <$> B.readFile file
 
-maybeToEither :: FilePath -> Maybe RawRoom -> Either WorldLoadFailure RawRoom
-maybeToEither _ (Just room) = Right room
-maybeToEither filepath Nothing = Left (WorldLoadFailure ("Failed to load room: " ++ filepath))
+addRoomId :: FilePath -> Maybe RawRoom -> Either WorldLoadFailure RawRoom
+addRoomId filepath (Just room) = Right room { rawRoomId = dropExtension $ takeBaseName filepath }
+addRoomId filepath Nothing = Left (WorldLoadFailure ("Failed to load room: " ++ filepath))
