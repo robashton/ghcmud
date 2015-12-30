@@ -1,8 +1,7 @@
 {
+  "rawRoomId": "northmiddlemarsh",
   "description": "Around you are marshes and mud, you are on a single track leading towards the north where you can see something that might be a city",
-  "directions": {
-    "north": "southplains",
-    "south": "middlemarsh"
-  }
+  "north": "southplains",
+  "south": "middlemarsh"
 }
 
