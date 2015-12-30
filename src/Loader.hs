@@ -65,7 +65,7 @@ convertRooms :: [RawRoom] -> Either WorldLoadFailure (Map.Map Coordinate Room)
 convertRooms rooms = case headMay rooms of
                        Nothing -> Left NoRoomsInWorld
                        Just RawRoom { rawRoomId = firstId } ->
-                         processRoom (Coordinate 0 0) firstId (initialBuildState rooms) >>= ensureAllRoomsProcessed
+                         ensureAllRoomsProcessed =<< processRoom (Coordinate 0 0) firstId (initialBuildState rooms)
 
 initialBuildState :: [RawRoom] -> BuilderState
 initialBuildState rooms = BuilderState (Map.fromList [], roomsIntoMap rooms)
