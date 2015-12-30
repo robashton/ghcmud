@@ -45,7 +45,6 @@ handleTextInstruction state@(GameState { gameSession = session, gameWorld = worl
                            Left err -> Right (translateCommandError err, state)
                            Right newSession -> Right (describeCurrentRoom newSession, state { gameSession = newSession })
 
-
 describeCurrentRoom :: Session -> String
 describeCurrentRoom Session { sessionRoom = Room { roomDescription = desc } } = desc
 

@@ -10,6 +10,7 @@ data Session = Session {
 
 data Command = Move Direction
              | Look Direction
+   deriving (Show, Eq)
 
 sessionStart :: Coordinate -> Player -> World -> Either FailFeedback Session
 sessionStart xy player world =
