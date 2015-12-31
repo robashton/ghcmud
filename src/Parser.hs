@@ -33,6 +33,7 @@ isLookCommand "scan" = True
 isLookCommand _ = False
 
 readCommand :: [String] -> Either ParseFailure Command
+readCommand [] = Left ShiteCommand
 readCommand (cmd:xs)
   | isMoveCommand(cmd) = Move <$> parseDirection xs
   | isLookCommand(cmd) = case xs of
@@ -41,6 +42,7 @@ readCommand (cmd:xs)
   | otherwise = Left ShiteCommand
 
 parseDirection :: [String] -> Either ParseFailure Direction
+parseDirection [] = Left ShiteCommand
 parseDirection ("west":_) = Right West
 parseDirection ("east":_) = Right East
 parseDirection ("north":_) = Right North

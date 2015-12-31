@@ -43,7 +43,8 @@ describeCurrentRoom Session { sessionRoom = Room { roomDescription = desc } } = 
 startInputLoop :: RunningWorld -> IO()
 startInputLoop game =
   do
-    --print $ describeCurrentRoom session
+    result <- sendCommand game LookAtCurrentRoom
+    print result
     inputLoop game
 
 inputLoop :: RunningWorld -> IO()
