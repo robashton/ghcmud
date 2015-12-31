@@ -4,6 +4,7 @@ import World
 import Session
 import Control.Applicative
 
+
 import Data.Char (toLower)
 
 data ParseFailure = ShiteCommand
@@ -22,9 +23,18 @@ isMoveCommand "go" = True
 isMoveCommand "walk" = True
 isMoveCommand _ = False
 
+isLookCommand :: String -> Bool
+isLookCommand "look" = True
+isLookCommand "peer" = True
+isLookCommand "scan" = True
+isLookCommand _ = False
+
 readCommand :: [String] -> Either ParseFailure Command
 readCommand (cmd:xs)
   | isMoveCommand(cmd) = Move <$> parseDirection xs
+  | isLookCommand(cmd) = case xs of
+                           [] -> Right LookAtCurrentRoom
+                           _ -> Look <$> parseDirection xs
   | otherwise = Left ShiteCommand
 
 parseDirection :: [String] -> Either ParseFailure Direction

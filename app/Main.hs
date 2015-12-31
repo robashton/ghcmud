@@ -5,6 +5,7 @@ import World
 import Session
 import Parser
 
+
 import Control.Applicative ((<*>), empty)
 import Control.Monad (liftM)
 
@@ -18,7 +19,11 @@ main =
   do
     loadResult <- loadDir "gaia/world"
     case loadResult of
-      Left (WorldLoadFailure msg) -> errorOut msg
+      Left (RoomParseFailure filename) -> errorOut ("Failed to parse room: " ++ filename)
+      Left (RoomsFailedToLoad fails) -> errorOut ("Failed to load rooms: " ++ (show fails))
+      Left NoRoomsInWorld -> errorOut "No rooms in the loaded world"
+      Left OrphanedRoomsFound -> errorOut "There were rooms in the world that weren't linked"
+      Left (RoomNotFound room) -> errorOut ("Room " ++ room ++ " not found in world")
       Right world -> startGame world
 
 startGame :: World -> IO()
@@ -26,7 +31,7 @@ startGame world =
   case initGameState world of
     Left RoomDoesNotExist -> errorOut "The room you were meant to start in did not exist"
     Right state ->
-      print "Your game starts now" >> inputLoop state
+      print "Your game starts now" >> startInputLoop state
 
 errorOut :: String -> IO()
 errorOut msg = print ("Arse, something went tits up, here is a msg about that: " ++ msg)
@@ -43,10 +48,17 @@ handleTextInstruction state@(GameState { gameSession = session, gameWorld = worl
     Left _ -> Right ("No idea what you're trying to say here", state)
     Right instruction -> case processCommand instruction world session of
                            Left err -> Right (translateCommandError err, state)
-                           Right newSession -> Right (describeCurrentRoom newSession, state { gameSession = newSession })
+                           Right (feedback, newSession) -> Right (feedback, state { gameSession = newSession })
 
 describeCurrentRoom :: Session -> String
 describeCurrentRoom Session { sessionRoom = Room { roomDescription = desc } } = desc
+
+
+startInputLoop :: GameState -> IO()
+startInputLoop state@( GameState { gameSession = session}) =
+  do
+    print $ describeCurrentRoom session
+    inputLoop state
 
 inputLoop :: GameState -> IO()
 inputLoop state =
