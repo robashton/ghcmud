@@ -17,6 +17,7 @@ import System.Directory
 import Control.Monad
 import Data.Either
 import Data.Aeson
+import Data.Foldable
 
 import qualified Data.ByteString.Lazy as B
 import qualified Data.Map as Map
@@ -85,10 +86,7 @@ processRoom coord roomId builderState@(BuilderState (output, input)) =
     (Just room, _) ->
       let inputWithoutRoom = Map.delete roomId input
           outputWithRoom = Map.insert coord (convertRoom room coord) output in
-          processSiblingRoom room coord South
-          =<< processSiblingRoom room coord West
-          =<< processSiblingRoom room coord East
-          =<< processSiblingRoom room coord North (BuilderState (outputWithRoom, inputWithoutRoom))
+        foldrM (processSiblingRoom room coord) (BuilderState (outputWithRoom, inputWithoutRoom)) [South, West, East, North]
     _ -> Right builderState
 
 processSiblingRoom :: RawRoom -> Coordinate -> Direction -> BuilderState -> Either WorldLoadFailure BuilderState
