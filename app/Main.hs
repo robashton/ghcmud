@@ -40,13 +40,13 @@ handleEndReason = print
 describeCurrentRoom :: Session -> String
 describeCurrentRoom Session { sessionRoom = Room { roomDescription = desc } } = desc
 
-startInputLoop :: MVar GameState -> IO()
+startInputLoop :: RunningWorld -> IO()
 startInputLoop game =
   do
     --print $ describeCurrentRoom session
     inputLoop game
 
-inputLoop :: MVar GameState -> IO()
+inputLoop :: RunningWorld -> IO()
 inputLoop game =
   do
     instruction <- getLine
