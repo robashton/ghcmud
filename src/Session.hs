@@ -1,8 +1,12 @@
-module Session where
+module Session (
+  sessionStart,
+  processCommand,
+  Command(..),
+  Session(..)
+) where
 
 import World
 import Control.Applicative
-
 
 data Session = Session {
   sessionPlayer :: Player,

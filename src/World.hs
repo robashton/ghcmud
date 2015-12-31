@@ -1,4 +1,14 @@
-module World where
+module World (
+  move,
+  findRoom,
+  Player(..),
+  Monster(..),
+  Room(..),
+  World(..),
+  Direction(..),
+  Coordinate(..),
+  FailFeedback(..)
+) where
 
 import qualified Data.Map as Map
 
@@ -32,11 +42,6 @@ data World = World {
   worldRooms :: Map.Map Coordinate Room
 } deriving (Show)
 
-buildWorld :: World
-buildWorld = World {
-  worldRooms = Map.fromList []
-}
-
 move :: Direction -> Coordinate -> Coordinate
 move West = west
 move East = east
@@ -54,7 +59,6 @@ west (Coordinate x y) = Coordinate (x-1) y
 
 east :: Coordinate -> Coordinate
 east (Coordinate x y) = Coordinate (x+1) y
-
 
 findRoom :: Coordinate -> World -> Either FailFeedback Room
 findRoom xy world = case Map.lookup xy $ worldRooms world of

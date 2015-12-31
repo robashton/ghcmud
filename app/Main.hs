@@ -57,3 +57,6 @@ inputLoop game =
           result <- sendCommand game command
           print result
           inputLoop game
+
+
+

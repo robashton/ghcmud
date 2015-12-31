@@ -1,4 +1,7 @@
-module Parser where
+module Parser (
+  parseCommand,
+  ParseFailure(..)
+) where
 
 import World
 import Session
