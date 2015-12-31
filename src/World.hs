@@ -2,7 +2,6 @@ module World where
 
 import qualified Data.Map as Map
 
-
 data Direction = West | North | East | South
   deriving (Show, Eq)
 

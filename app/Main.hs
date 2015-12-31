@@ -4,15 +4,14 @@ import Loader
 import World
 import Session
 import Parser
-
+import RunningWorld
 
 import Control.Applicative ((<*>), empty)
 import Control.Monad (liftM)
+import Control.Concurrent
 
-data GameState = GameState {
-  gameWorld :: World,
-  gameSession :: Session
-  } deriving (Show)
+errorOut :: String -> IO()
+errorOut msg = print ("Arse, something went tits up, here is a msg about that: " ++ msg)
 
 main :: IO ()
 main =
@@ -28,55 +27,33 @@ main =
 
 startGame :: World -> IO()
 startGame world =
-  case initGameState world of
+  case createRunningWorld world of
     Left RoomDoesNotExist -> errorOut "The room you were meant to start in did not exist"
-    Right state ->
-      print "Your game starts now" >> startInputLoop state
-
-errorOut :: String -> IO()
-errorOut msg = print ("Arse, something went tits up, here is a msg about that: " ++ msg)
-
-translateCommandError :: FailFeedback -> String
-translateCommandError RoomDoesNotExist = "There is no room there, doofus"
+    Right game ->
+      do
+        print "Your game starts now"
+        game >>= startInputLoop
 
 handleEndReason :: String -> IO()
 handleEndReason = print
 
-handleTextInstruction :: GameState -> String -> Either String (String, GameState)
-handleTextInstruction state@(GameState { gameSession = session, gameWorld = world }) command =
-  case parseCommand command of
-    Left _ -> Right ("No idea what you're trying to say here", state)
-    Right instruction -> case processCommand instruction world session of
-                           Left err -> Right (translateCommandError err, state)
-                           Right (feedback, newSession) -> Right (feedback, state { gameSession = newSession })
-
 describeCurrentRoom :: Session -> String
 describeCurrentRoom Session { sessionRoom = Room { roomDescription = desc } } = desc
 
-
-startInputLoop :: GameState -> IO()
-startInputLoop state@( GameState { gameSession = session}) =
+startInputLoop :: MVar GameState -> IO()
+startInputLoop game =
   do
-    print $ describeCurrentRoom session
-    inputLoop state
+    --print $ describeCurrentRoom session
+    inputLoop game
 
-inputLoop :: GameState -> IO()
-inputLoop state =
+inputLoop :: MVar GameState -> IO()
+inputLoop game =
   do
     instruction <- getLine
-    case handleTextInstruction state instruction of
-      Left endReason -> handleEndReason endReason
-      Right (msg, newState) ->
-          print msg >> inputLoop newState
-
-initGameState :: World -> Either FailFeedback GameState
-initGameState world =
-  (GameState world) <$> sessionStart (Coordinate 0 0) createPlayer world
-
-createPlayer :: Player
-createPlayer =
-  Player {
-    playerHealth = 10,
-    playerLevel = 1,
-    playerExperience = 0
-  }
+    case parseCommand instruction of
+      Left _nope -> print "No idea what you're saying here" >> inputLoop game
+      Right command ->
+        do
+          result <- sendCommand game command
+          print result
+          inputLoop game
