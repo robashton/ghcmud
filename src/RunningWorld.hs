@@ -11,6 +11,7 @@ import Session
 
 import Control.Concurrent
 import Control.Monad
+import Data.Either
 
 data RunningWorld = RunningWorld (MVar GameState)
 
@@ -31,9 +32,9 @@ sendCommand (RunningWorld m) c =
 
 handleCommand :: Command -> GameState -> (String, GameState)
 handleCommand command state@( GameState { gameSession = session, gameWorld = world }) =
-  case processCommand command world session of
-    Left err -> (translateCommandError err, state)
-    Right (feedback, newSession) -> (feedback, state { gameSession = newSession })
+  either handleError handleSuccess $ processCommand command world session where
+    handleError err = (translateCommandError err, state)
+    handleSuccess (feedback, newSession) = (feedback, state { gameSession = newSession })
 
 translateCommandError :: FailFeedback -> String
 translateCommandError RoomDoesNotExist = "There is no room there, doofus"

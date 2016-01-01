@@ -28,20 +28,19 @@ sessionStart xy player world =
 
 processCommand :: Command -> World -> Session -> Either FailFeedback (String, Session)
 processCommand (Move direction) world session =
-  let room = sessionRoom session
-      currentPosition = roomId room
-      newPosition = move direction currentPosition in
-   case findRoom newPosition world of
-     Left err -> Left err
-     Right newRoom -> Right (roomDescription newRoom, session { sessionRoom = newRoom })
+   either Left updateSessionRoom $ findRoom newPosition world where
+     room = sessionRoom session
+     currentPosition = roomId room
+     newPosition = move direction currentPosition
+     updateSessionRoom newRoom = Right (roomDescription newRoom, session { sessionRoom = newRoom })
 
 processCommand (Look direction) world session =
-  let room = sessionRoom session
-      currentPosition = roomId room
-      newPosition = move direction currentPosition in
-   case findRoom newPosition world of
-     Left err -> Right ("There is nothing there", session)
-     Right newRoom -> Right (roomDescription newRoom, session)
+  either noRoomRound describeRoom $ findRoom newPosition world where
+    room = sessionRoom session
+    currentPosition = roomId room
+    newPosition = move direction currentPosition
+    describeRoom otherRoom= Right (roomDescription otherRoom, session)
+    noRoomRound _ = Right ("There is nothing there", session)
 
 processCommand LookAtCurrentRoom world session@(Session { sessionRoom = room}) =
   Right (roomDescription room, session)

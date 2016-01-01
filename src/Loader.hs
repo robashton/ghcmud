@@ -78,7 +78,7 @@ roomsIntoMap = Map.fromList . map intoPair
 
 ensureAllRoomsProcessed :: BuilderState -> Either WorldLoadFailure (Map.Map Coordinate Room)
 ensureAllRoomsProcessed (BuilderState (output, input)) | Map.null input = Right output
-ensureAllRoomsProcess _ = Left OrphanedRoomsFound
+ensureAllRoomsProcessed _ = Left OrphanedRoomsFound
 
 processRoom :: Coordinate -> String -> BuilderState -> Either WorldLoadFailure BuilderState
 processRoom coord roomId builderState@(BuilderState (output, input)) =

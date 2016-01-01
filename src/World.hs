@@ -11,6 +11,7 @@ module World (
 ) where
 
 import qualified Data.Map as Map
+import Data.Maybe (fromMaybe)
 
 data Direction = West | North | East | South
   deriving (Show, Eq)
@@ -61,9 +62,7 @@ east :: Coordinate -> Coordinate
 east (Coordinate x y) = Coordinate (x+1) y
 
 findRoom :: Coordinate -> World -> Either FailFeedback Room
-findRoom xy world = case Map.lookup xy $ worldRooms world of
-                      Nothing -> Left RoomDoesNotExist
-                      Just room -> Right room
+findRoom xy world = maybe (Left RoomDoesNotExist) (Right) $ Map.lookup xy $ worldRooms world
 
 addRoom :: World -> Room -> World
 addRoom world@(World { worldRooms = existingRooms }) room =
