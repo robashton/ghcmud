@@ -18,9 +18,11 @@ import Control.Monad
 import Data.Either
 import Data.Aeson
 import Data.Foldable
+import Data.Monoid
+import Data.Maybe (fromMaybe)
 
 import qualified Data.ByteString.Lazy as B
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import Control.Applicative ((<*>), empty)
 
 data RawRoom = RawRoom {
@@ -63,37 +65,40 @@ checkRoomLoadErrors ([], rooms) = Right rooms
 checkRoomLoadErrors (errors, _) = Left $ RoomsFailedToLoad errors
 
 convertRooms :: [RawRoom] -> Either WorldLoadFailure (Map.Map Coordinate Room)
-convertRooms rooms = case headMay rooms of
-                       Nothing -> Left NoRoomsInWorld
-                       Just RawRoom { rawRoomId = firstId } ->
-                         ensureAllRoomsProcessed =<< processRoom (Coordinate 0 0) firstId (initialBuildState rooms)
+convertRooms [] = Left NoRoomsInWorld
+convertRooms rooms@(RawRoom { rawRoomId = firstId }:_) =
+  ensureAllRoomsProcessed =<< processRoom (Coordinate 0 0) firstId (initialBuildState rooms)
 
 initialBuildState :: [RawRoom] -> BuilderState
-initialBuildState rooms = BuilderState (Map.fromList [], roomsIntoMap rooms)
+initialBuildState rooms = BuilderState (mempty, roomsIntoMap rooms)
 
 roomsIntoMap :: [RawRoom] -> (Map.Map String RawRoom)
-roomsIntoMap = Map.fromList . map intoPair where intoPair room@(RawRoom { rawRoomId = roomId }) = ( roomId, room )
+roomsIntoMap = Map.fromList . map intoPair
+  where intoPair room@(RawRoom { rawRoomId = roomId }) = ( roomId, room )
 
 ensureAllRoomsProcessed :: BuilderState -> Either WorldLoadFailure (Map.Map Coordinate Room)
-ensureAllRoomsProcessed (BuilderState (output, input))
-  | Map.null input = Right output
-  | otherwise = Left OrphanedRoomsFound
+ensureAllRoomsProcessed (BuilderState (output, input)) | Map.null input = Right output
+ensureAllRoomsProcess _ = Left OrphanedRoomsFound
 
 processRoom :: Coordinate -> String -> BuilderState -> Either WorldLoadFailure BuilderState
 processRoom coord roomId builderState@(BuilderState (output, input)) =
-  case (Map.lookup roomId input, Map.lookup coord output) of
-    (Nothing, Nothing) -> Left $ RoomNotFound roomId
-    (Just room, _) ->
-      let inputWithoutRoom = Map.delete roomId input
-          outputWithRoom = Map.insert coord (convertRoom room coord) output in
-        foldrM (processSiblingRoom room coord) (BuilderState (outputWithRoom, inputWithoutRoom)) [South, West, East, North]
-    _ -> Right builderState
+  fromMaybe unreferenced $ nextRooms <$> referencedRoom where
+        referencedRoom = Map.lookup roomId input
+        locatedRoom = Map.lookup coord output
+        notFound = Left $ RoomNotFound roomId
+        unchanged _ = Right builderState
+        unreferenced = maybe notFound unchanged locatedRoom
+        inputWithoutRoom = Map.delete roomId input
+        -- This isn't that nice :(
+        addRoom room = let outputWithRoom = Map.insert coord (convertRoom room coord) output
+          in BuilderState (outputWithRoom, inputWithoutRoom)
+        nextRooms room = (foldrM (processSiblingRoom room coord) (addRoom room) [South, West, East, North] :: Either WorldLoadFailure BuilderState)
 
 processSiblingRoom :: RawRoom -> Coordinate -> Direction -> BuilderState -> Either WorldLoadFailure BuilderState
 processSiblingRoom currentRoom currentCoordinate direction builderState =
-  case (sibling direction currentRoom) of
-    Nothing -> Right builderState
-    Just siblingRoomName -> processRoom (move direction currentCoordinate) siblingRoomName builderState
+  maybe (Right builderState) nextRoom roomName where
+    roomName = sibling direction currentRoom
+    nextRoom siblingRoomName = processRoom (move direction currentCoordinate) siblingRoomName builderState
 
 sibling :: Direction -> RawRoom -> Maybe String
 sibling West = Loader.west
@@ -109,9 +114,9 @@ parseRoom :: FilePath -> B.ByteString -> Either WorldLoadFailure RawRoom
 parseRoom file = (addRoomId file) . decode
 
 addRoomId :: FilePath -> Maybe RawRoom -> Either WorldLoadFailure RawRoom
-addRoomId filepath (Just room) = Right room { rawRoomId = dropExtension $ takeBaseName filepath }
-addRoomId filepath Nothing = Left $ RoomParseFailure filepath
-
+addRoomId filepath = maybe fail addRoom
+  where addRoom room = Right room { rawRoomId = dropExtension $ takeBaseName filepath }
+        fail = Left $ RoomParseFailure filepath
 --
 -- IO
 --
