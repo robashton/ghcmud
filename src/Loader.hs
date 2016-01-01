@@ -3,6 +3,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards  #-}
 
+-- This module searches a directory for 'rooms' and returns a constructed 'World'
+-- with an automatically determined coordinate system based on traversing the 'rooms' in that world
+
 module Loader (
   loadDir,
   WorldLoadFailure(..)

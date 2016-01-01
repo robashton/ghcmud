@@ -47,3 +47,16 @@ createPlayer =
     playerExperience = 0
   }
 
+-- WorldDefinition
+  -- Contains descriptions of rooms
+  -- The default starting location within that world
+  -- monsters, items, etc to be found on those monsters and descriptions of all of that
+
+-- ActiveWorld
+  -- Contains room "instances" which are created on demand (when a player needs to go into the room)
+  -- This will have the effect of spawning anything in that room that might need spawning
+  -- We'll have a tick that goes through active instances and prunes any that haven't been used in a while
+  -- We'll have queued up actions in those worlds too and they'll be executed either on that tick or a different tick
+  -- Same tick will likely re-spawn monsters if a room has been active for too long for example
+
+
