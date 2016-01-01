@@ -1,10 +1,10 @@
-module World (
+module WorldDefinition (
   move,
   findRoom,
   Player(..),
   Monster(..),
-  Room(..),
-  World(..),
+  RoomDefinition(..),
+  WorldDefinition(..),
   Direction(..),
   Coordinate(..),
   FailFeedback(..)
@@ -33,14 +33,14 @@ data Monster = Monster {
   monsterHealth :: Integer
 } deriving (Show)
 
-data Room = Room {
+data RoomDefinition = RoomDefinition {
   roomId :: Coordinate,
   roomDescription :: String,
   monsters :: [Monster]
 } deriving (Show)
 
-data World = World {
-  worldRooms :: Map.Map Coordinate Room
+data WorldDefinition = WorldDefinition {
+  worldRooms :: Map.Map Coordinate RoomDefinition
 } deriving (Show)
 
 move :: Direction -> Coordinate -> Coordinate
@@ -61,10 +61,5 @@ west (Coordinate x y) = Coordinate (x-1) y
 east :: Coordinate -> Coordinate
 east (Coordinate x y) = Coordinate (x+1) y
 
-findRoom :: Coordinate -> World -> Either FailFeedback Room
+findRoom :: Coordinate -> WorldDefinition -> Either FailFeedback RoomDefinition
 findRoom xy world = maybe (Left RoomDoesNotExist) (Right) $ Map.lookup xy $ worldRooms world
-
-addRoom :: World -> Room -> World
-addRoom world@(World { worldRooms = existingRooms }) room =
-  world { worldRooms = (Map.insert (roomId room) room existingRooms) }
-

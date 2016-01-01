@@ -3,7 +3,7 @@ module Parser (
   ParseFailure(..)
 ) where
 
-import World
+import WorldDefinition
 import Session
 import Control.Applicative
 

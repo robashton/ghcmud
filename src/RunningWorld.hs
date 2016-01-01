@@ -5,7 +5,7 @@ module RunningWorld
   RunningWorld
 ) where
 
-import World
+import WorldDefinition
 import Parser
 import Session
 
@@ -16,11 +16,11 @@ import Data.Either
 data RunningWorld = RunningWorld (MVar GameState)
 
 data GameState = GameState {
-  gameWorld :: World,
+  gameWorld :: WorldDefinition,
   gameSession :: Session
   } deriving (Show)
 
-createRunningWorld :: World -> Either FailFeedback (IO RunningWorld)
+createRunningWorld :: WorldDefinition -> Either FailFeedback (IO RunningWorld)
 createRunningWorld world = liftM RunningWorld <$> newMVar <$> (GameState world) <$> sessionStart (Coordinate 0 0) createPlayer world
 
 sendCommand :: RunningWorld -> Command -> IO String

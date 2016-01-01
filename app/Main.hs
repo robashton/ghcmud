@@ -1,7 +1,7 @@
 module Main where
 
 import Loader
-import World
+import WorldDefinition
 import Session
 import Parser
 import RunningWorld
@@ -23,11 +23,11 @@ loadFailure (RoomNotFound room) = print ("Room " ++ room ++ " not found in world
 main :: IO ()
 main = either loadFailure startGame =<< loadDir "gaia/world"
 
-startGame :: World -> IO()
+startGame :: WorldDefinition -> IO()
 startGame = either startFailure ((=<<) startInputLoop) . createRunningWorld
 
 describeCurrentRoom :: Session -> String
-describeCurrentRoom Session { sessionRoom = Room { roomDescription = desc } } = desc
+describeCurrentRoom Session { sessionRoom = RoomDefinition { roomDescription = desc } } = desc
 
 startInputLoop :: RunningWorld -> IO()
 startInputLoop game = (handleCommandResult game) =<< sendCommand game LookAtCurrentRoom

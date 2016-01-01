@@ -5,12 +5,12 @@ module Session (
   Session(..)
 ) where
 
-import World
+import WorldDefinition
 import Control.Applicative
 
 data Session = Session {
   sessionPlayer :: Player,
-  sessionRoom :: Room
+  sessionRoom :: RoomDefinition
 } deriving (Show)
 
 data Command = Move Direction
@@ -18,7 +18,7 @@ data Command = Move Direction
              | LookAtCurrentRoom
    deriving (Show, Eq)
 
-sessionStart :: Coordinate -> Player -> World -> Either FailFeedback Session
+sessionStart :: Coordinate -> Player -> WorldDefinition -> Either FailFeedback Session
 sessionStart xy player world =
   createSession <$> findRoom xy world
     where createSession room = Session {
@@ -26,7 +26,7 @@ sessionStart xy player world =
       sessionRoom = room
       }
 
-processCommand :: Command -> World -> Session -> Either FailFeedback (String, Session)
+processCommand :: Command -> WorldDefinition -> Session -> Either FailFeedback (String, Session)
 processCommand (Move direction) world session =
    either Left updateSessionRoom $ findRoom newPosition world where
      room = sessionRoom session

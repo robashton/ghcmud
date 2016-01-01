@@ -11,7 +11,7 @@ module Loader (
   WorldLoadFailure(..)
 ) where
 
-import World
+import WorldDefinition
 
 import Safe
 import System.FilePath
@@ -44,7 +44,7 @@ data WorldLoadFailure = RoomParseFailure String
                       | RoomNotFound String
   deriving (Show)
 
-newtype BuilderState = BuilderState ((Map.Map Coordinate Room), (Map.Map String RawRoom))
+newtype BuilderState = BuilderState ((Map.Map Coordinate RoomDefinition), (Map.Map String RawRoom))
 
 instance FromJSON RawRoom where
   parseJSON = withObject "rawroom" $
@@ -57,17 +57,17 @@ instance FromJSON RawRoom where
       west <- obj .:? "west"
       return RawRoom {..}
 
-loadDir :: FilePath -> IO (Either WorldLoadFailure World)
+loadDir :: FilePath -> IO (Either WorldLoadFailure WorldDefinition)
 loadDir = fmap createWorld . join . fmap loadRooms . fullRoomPaths
 
-createWorld :: ([WorldLoadFailure], [RawRoom]) -> Either WorldLoadFailure World
-createWorld = fmap World . join . fmap convertRooms . checkRoomLoadErrors
+createWorld :: ([WorldLoadFailure], [RawRoom]) -> Either WorldLoadFailure WorldDefinition
+createWorld = fmap WorldDefinition . join . fmap convertRooms . checkRoomLoadErrors
 
 checkRoomLoadErrors :: ([WorldLoadFailure], [RawRoom]) -> Either WorldLoadFailure [RawRoom]
 checkRoomLoadErrors ([], rooms) = Right rooms
 checkRoomLoadErrors (errors, _) = Left $ RoomsFailedToLoad errors
 
-convertRooms :: [RawRoom] -> Either WorldLoadFailure (Map.Map Coordinate Room)
+convertRooms :: [RawRoom] -> Either WorldLoadFailure (Map.Map Coordinate RoomDefinition)
 convertRooms [] = Left NoRoomsInWorld
 convertRooms rooms@(RawRoom { rawRoomId = firstId }:_) =
   ensureAllRoomsProcessed =<< processRoom (Coordinate 0 0) firstId (initialBuildState rooms)
@@ -79,7 +79,7 @@ roomsIntoMap :: [RawRoom] -> (Map.Map String RawRoom)
 roomsIntoMap = Map.fromList . map intoPair
   where intoPair room@(RawRoom { rawRoomId = roomId }) = ( roomId, room )
 
-ensureAllRoomsProcessed :: BuilderState -> Either WorldLoadFailure (Map.Map Coordinate Room)
+ensureAllRoomsProcessed :: BuilderState -> Either WorldLoadFailure (Map.Map Coordinate RoomDefinition)
 ensureAllRoomsProcessed (BuilderState (output, input)) | Map.null input = Right output
 ensureAllRoomsProcessed _ = Left OrphanedRoomsFound
 
@@ -109,9 +109,9 @@ sibling East = Loader.east
 sibling South = Loader.south
 sibling North = Loader.north
 
-convertRoom :: RawRoom -> Coordinate -> Room
+convertRoom :: RawRoom -> Coordinate -> RoomDefinition
 convertRoom RawRoom { description = roomDescription } roomId =
-  let monsters = [] in Room{..}
+  let monsters = [] in RoomDefinition{..}
 
 parseRoom :: FilePath -> B.ByteString -> Either WorldLoadFailure RawRoom
 parseRoom file = (addRoomId file) . decode
