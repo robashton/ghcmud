@@ -2,7 +2,8 @@ module RunningWorld
 (
   createRunningWorld,
   sendCommand,
-  RunningWorld
+  addPlayer,
+  RunningWorld,
 ) where
 
 import WorldDefinition
@@ -12,33 +13,50 @@ import Session
 import Control.Concurrent
 import Control.Monad
 import Data.Either
+import qualified Data.Map as Map
 
 data RunningWorld = RunningWorld (MVar GameState)
+data PlayerId = String deriving (Show)
+data GenericSuccess = GenericSuccess
+
+data ActiveRoom = ActiveRoom {
+  activeRoomCoordinate :: Coordinate,
+  activeRoomPlayers :: [PlayerId]
+} deriving (Show)
 
 data GameState = GameState {
   gameWorld :: WorldDefinition,
-  gameSession :: Session
+  activeRooms :: Map.Map Coordinate ActiveRoom,
+  activePlayers :: Map.Map String Player
   } deriving (Show)
 
 createRunningWorld :: WorldDefinition -> Either FailFeedback (IO RunningWorld)
-createRunningWorld world = liftM RunningWorld <$> newMVar <$> (GameState world) <$> sessionStart (Coordinate 0 0) createPlayer world
+createRunningWorld world = liftM RunningWorld <$> newMVar <$> (GameState world mempty mempty)
 
-sendCommand :: RunningWorld -> Command -> IO String
-sendCommand (RunningWorld m) c =
+addPlayer :: RunningWorld -> Player -> IO (Either FailFeedback GenericSuccess)
+addPlayer (RunningWorld m) player =
   do
-    (result, newState) <- ((handleCommand c) <$> takeMVar m)
-    putMVar m newState
-    return result
+    GenericSuccess <*> (putMVar m) <$> (maybeSetupPlayer player) <$> takeMVar m
 
-handleCommand :: Command -> GameState -> (String, GameState)
-handleCommand command state@( GameState { gameSession = session, gameWorld = world }) =
-  either handleError handleSuccess $ processCommand command world session where
-    handleError err = (translateCommandError err, state)
-    handleSuccess (feedback, newSession) = (feedback, state { gameSession = newSession })
+maybeSetupPlayer :: Player -> GameState -> Either FailFeedback GameState
+maybeSetupPlayer _ s = Right s
 
-translateCommandError :: FailFeedback -> String
-translateCommandError RoomDoesNotExist = "There is no room there, doofus"
+--sendCommand :: RunningWorld -> PlayerId -> Command -> IO String
+--sendCommand (RunningWorld m) c =
+--  do
+--    (result, newState) <- ((handleCommand c) <$> takeMVar m)
+--    putMVar m newState
+--    return result
 
+--handleCommand :: Command -> GameState -> (String, GameState)
+--handleCommand command state@( GameState { gameSession = session, gameWorld = world }) =
+--  either handleError handleSuccess $ processCommand command world session where
+--    handleError err = (translateCommandError err, state)
+--    handleSuccess (feedback, newSession) = (feedback, state { gameSession = newSession })
+--
+--translateCommandError :: FailFeedback -> String
+--translateCommandError RoomDoesNotExist = "There is no room there, doofus"
+--
 createPlayer :: Player
 createPlayer =
   Player {
