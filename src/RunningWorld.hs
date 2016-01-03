@@ -44,19 +44,25 @@ addPlayer world = withStateAndResult world . maybeSetupPlayer
 
 maybeSetupPlayer :: Player -> GameState -> (Either FailFeedback GenericSuccess, GameState)
 maybeSetupPlayer player initialState =
-  either failure success $ playerIntoWorld player =<< (ensureRoomActive (playerLocation player) initialState) where
+  either failure success $ playerIntoWorld player =<< (maybeEnsureRoomActive (playerLocation player) initialState) where
     failure reason = (Left reason, initialState)
     success s = (Right GenericSuccess, stateWithPlayer s)
     stateWithPlayer s = s { activePlayers = Map.insert (playerId player) player (activePlayers s) }
 
-ensureRoomActive :: Coordinate -> GameState -> Either FailFeedback GameState
-ensureRoomActive coordinate originalState =
-  maybe makeRoomActive roomAlreadyActive $ Map.lookup coordinate currentActiveRooms where
-    roomAlreadyActive _ = Right originalState
-    makeRoomActive = maybe (Left RoomDoesNotExist) amendStateWithRoom $ Map.lookup coordinate (worldRooms (gameWorld originalState))
-    amendStateWithRoom room = (Right originalState { activeRooms = Map.insert coordinate newActiveRoom currentActiveRooms })
-    newActiveRoom = ActiveRoom coordinate []
+maybeEnsureRoomActive :: Coordinate -> GameState -> Either FailFeedback GameState
+maybeEnsureRoomActive coordinate originalState =
+  maybe (Left RoomDoesNotExist) setupRoom $ Map.lookup coordinate (worldRooms (gameWorld originalState)) where
+    setupRoom definition = Right $ ensureRoomActive definition originalState
+
+ensureRoomActive :: RoomDefinition -> GameState -> GameState
+ensureRoomActive room originalState =
+  maybe makeRoomActive success $ Map.lookup coordinate currentActiveRooms where
+    success _ = originalState
+    coordinate = (roomId room)
+    makeRoomActive = originalState { activeRooms = Map.insert coordinate newActiveRoom currentActiveRooms }
     currentActiveRooms = (activeRooms originalState)
+    newActiveRoom = ActiveRoom coordinate []
+
 
 playerIntoWorld :: Player -> GameState -> Either FailFeedback GameState
 playerIntoWorld player originalState =
@@ -66,6 +72,22 @@ playerIntoWorld player originalState =
     currentActiveRooms = (activeRooms originalState)
     coordinate = (playerLocation player)
     updateRoomWithPlayer room player = room { activeRoomPlayers = (playerId player) : (activeRoomPlayers room) }
+
+sendCommand :: RunningWorld -> PlayerId -> Command -> IO (Either FailFeedback String)
+sendCommand world targetPlayerId command = withStateAndResult world $ RunningWorld.processCommand targetPlayerId command
+
+processCommand :: PlayerId -> Command -> GameState -> ((Either FailFeedback String), GameState)
+processCommand _ _ s = (Right "god", s)
+--processCommand targetPlayerId (Move direction) state =
+--  let maybePlayer = Map.lookup targetPlayerId (activePlayers state)
+--      maybePlayerLocation = playerLocation <$> maybePlayer
+--      maybeNextPlayerLocation = move direction <$> maybePlayerLocation
+--      maybeCurrentRoom = ((flip Map.lookup) (activeRooms state)) <$> maybePlayerLocation
+--      maybeNextRoom = (flip Map.lookup) (worldRooms (gameWorld state)) <$> maybeNextPlayerLocation
+--      stateWithActiveRoom = ensure
+--
+--processCommand targetPlayerId (Look direction) state = (Right "Woop", state)
+
 
 --sendCommand :: RunningWorld -> PlayerId -> Command -> IO String
 --sendCommand (RunningWorld m) c =
