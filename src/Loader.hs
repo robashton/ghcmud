@@ -92,10 +92,9 @@ processRoom coord roomId builderState@(BuilderState (output, input)) =
         unchanged _ = Right builderState
         unreferenced = maybe notFound unchanged locatedRoom
         inputWithoutRoom = Map.delete roomId input
-        -- This isn't that nice :(
-        addRoom room = let outputWithRoom = Map.insert coord (convertRoom room coord) output
-          in BuilderState (outputWithRoom, inputWithoutRoom)
-        nextRooms room = (foldrM (processSiblingRoom room coord) (addRoom room) [South, West, East, North] :: Either WorldLoadFailure BuilderState)
+        nextRooms room = foldrM (processSiblingRoom room coord) (addRoom room) [South, West, East, North]
+        addRoom room = BuilderState (outputWithRoom, inputWithoutRoom) where
+          outputWithRoom = Map.insert coord (convertRoom room coord) output
 
 processSiblingRoom :: RawRoom -> Coordinate -> Direction -> BuilderState -> Either WorldLoadFailure BuilderState
 processSiblingRoom currentRoom currentCoordinate direction builderState =

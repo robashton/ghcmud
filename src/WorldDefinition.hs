@@ -1,6 +1,7 @@
 module WorldDefinition (
   move,
   findRoom,
+  PlayerId(..),
   Player(..),
   Monster(..),
   RoomDefinition(..),
@@ -17,14 +18,18 @@ data Direction = West | North | East | South
   deriving (Show, Eq)
 
 data FailFeedback = RoomDoesNotExist
+newtype PlayerId = PlayerId String
+  deriving (Show, Ord, Eq)
 
 data Coordinate = Coordinate Integer Integer
   deriving (Show, Eq, Ord)
 
 data Player = Player {
+  playerId :: PlayerId,
   playerHealth :: Integer,
   playerLevel :: Integer,
-  playerExperience :: Integer
+  playerExperience :: Integer,
+  playerLocation :: Coordinate
   } deriving (Show)
 
 data Monster = Monster {
