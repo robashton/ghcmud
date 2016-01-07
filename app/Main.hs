@@ -24,21 +24,39 @@ main :: IO ()
 main = either loadFailure startGame =<< loadDir "gaia/world"
 
 startGame :: WorldDefinition -> IO()
-startGame = either startFailure ((=<<) startInputLoop) . createRunningWorld
+startGame definition = do
+  world <- createRunningWorld definition
+  addPlayerToWorld world
+  startInputLoop world
 
-describeCurrentRoom :: Session -> String
-describeCurrentRoom Session { sessionRoom = RoomDefinition { roomDescription = desc } } = desc
+addPlayerToWorld :: RunningWorld -> IO PlayerId
+addPlayerToWorld game =
+  let awesomePlayer = Player {
+      playerId = defaultPlayerId,
+      playerHealth = 100,
+      playerLevel = 999,
+      playerExperience = 5,
+      playerLocation = Coordinate 0 0
+       } in
+    do
+      addPlayerResult <- addPlayer game awesomePlayer
+      print (show addPlayerResult)
+      return (playerId awesomePlayer)
+
+defaultPlayerId :: PlayerId
+defaultPlayerId = PlayerId "bob"
 
 startInputLoop :: RunningWorld -> IO()
-startInputLoop game = (handleCommandResult game) =<< sendCommand game LookAtCurrentRoom
+startInputLoop game = (handleCommandResult game) =<< sendCommand game defaultPlayerId LookAtCurrentRoom
 
-handleCommandResult :: RunningWorld -> String -> IO()
-handleCommandResult game result = print result >> inputLoop game
+handleCommandResult :: RunningWorld -> (Either FailFeedback String) -> IO()
+handleCommandResult game (Right result) = print result >> inputLoop game
+handleCommandResult game (Left result) = print (show result) >> inputLoop game
 
 inputLoop :: RunningWorld -> IO()
-inputLoop game =
+inputLoop game  =
   do
     instruction <- getLine
     either failParse actionCommand (parseCommand instruction) where
       failParse _ = print "No idea what you're saying here" >> inputLoop game
-      actionCommand command = (handleCommandResult game) =<< (sendCommand game command)
+      actionCommand command = (handleCommandResult game) =<< (sendCommand game defaultPlayerId command)

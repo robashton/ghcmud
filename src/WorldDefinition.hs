@@ -18,6 +18,12 @@ data Direction = West | North | East | South
   deriving (Show, Eq)
 
 data FailFeedback = RoomDoesNotExist
+                  | NoSuchActiveRoom Coordinate -- THESE SHOULD NOT BE HERE
+                  | NoSuchRoom Coordinate
+                  | NoSuchPlayer PlayerId
+
+  deriving (Show)
+
 newtype PlayerId = PlayerId String
   deriving (Show, Ord, Eq)
 

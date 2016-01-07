@@ -1,7 +1,7 @@
 module RunningWorld
 (
   createRunningWorld,
-  --sendCommand,
+  sendCommand,
   addPlayer,
   RunningWorld,
 ) where
@@ -14,13 +14,16 @@ import Control.Concurrent
 import Control.Monad
 import Data.Either
 import qualified Data.Map as Map
+import qualified Data.Set as Set
+import Data.Graph.Inductive.Query.Monad (mapFst)
 
 data RunningWorld = RunningWorld (MVar GameState)
 data GenericSuccess = GenericSuccess
+  deriving (Show)
 
 data ActiveRoom = ActiveRoom {
   activeRoomCoordinate :: Coordinate,
-  activeRoomPlayers :: [PlayerId]
+  activeRoomPlayers :: Set.Set PlayerId
 } deriving (Show)
 
 data GameState = GameState {
@@ -51,71 +54,100 @@ maybeSetupPlayer player initialState =
 
 maybeEnsureRoomActive :: Coordinate -> GameState -> Either FailFeedback GameState
 maybeEnsureRoomActive coordinate originalState =
-  maybe (Left RoomDoesNotExist) setupRoom $ Map.lookup coordinate (worldRooms (gameWorld originalState)) where
-    setupRoom definition = Right $ ensureRoomActive definition originalState
+  maybe (Left RoomDoesNotExist) setupRoom $ findRoomDefinition coordinate originalState where
+    setupRoom definition = Right $ snd $ ensureRoomActive definition originalState
 
-ensureRoomActive :: RoomDefinition -> GameState -> GameState
+ensureRoomActive :: RoomDefinition -> GameState -> (ActiveRoom, GameState)
 ensureRoomActive room originalState =
-  maybe makeRoomActive success $ Map.lookup coordinate currentActiveRooms where
-    success _ = originalState
+  maybe makeRoomActive roomAlreadyActive $ Map.lookup coordinate currentActiveRooms where
+    roomAlreadyActive room = (room, originalState)
+    makeRoomActive = (newActiveRoom, originalState { activeRooms = Map.insert coordinate newActiveRoom currentActiveRooms })
     coordinate = (roomId room)
-    makeRoomActive = originalState { activeRooms = Map.insert coordinate newActiveRoom currentActiveRooms }
     currentActiveRooms = (activeRooms originalState)
-    newActiveRoom = ActiveRoom coordinate []
-
+    newActiveRoom = ActiveRoom coordinate mempty
 
 playerIntoWorld :: Player -> GameState -> Either FailFeedback GameState
 playerIntoWorld player originalState =
   maybe failure success $ Map.lookup coordinate currentActiveRooms where
     failure = Left RoomDoesNotExist
-    success room = Right originalState { activeRooms = Map.insert coordinate (updateRoomWithPlayer room player) currentActiveRooms }
+    success room = Right originalState { activeRooms = Map.insert coordinate (addPlayerToRoom (playerId player) room) currentActiveRooms }
     currentActiveRooms = (activeRooms originalState)
     coordinate = (playerLocation player)
-    updateRoomWithPlayer room player = room { activeRoomPlayers = (playerId player) : (activeRoomPlayers room) }
+
+addPlayerToRoom :: PlayerId -> ActiveRoom -> ActiveRoom
+addPlayerToRoom targetPlayerId room =
+  room { activeRoomPlayers = Set.insert targetPlayerId (activeRoomPlayers room) }
+
+removePlayerFromRoom :: PlayerId -> ActiveRoom -> ActiveRoom
+removePlayerFromRoom targetPlayerId room =
+  room { activeRoomPlayers = Set.delete targetPlayerId (activeRoomPlayers room) }
+
+data MovePlayerContext = MovePlayerContext {
+  mpContextPlayer :: Player,
+  mpContextNextLocation :: Coordinate,
+  mpContextLastRoom :: ActiveRoom,
+  mpContextNextRoomDefinition :: RoomDefinition
+}
+
+data ValidatedCommand = ValidatedMoveCommand MovePlayerContext
+
+processCommand :: PlayerId -> Command -> GameState -> ((Either FailFeedback String), GameState)
+processCommand targetPlayerId (Move direction) originalState =
+  either handleFailure adjustWorld $ MovePlayerContext <$> maybePlayer <*> maybeNextLocation <*> maybeCurrentRoom <*> maybeNextRoom where
+    handleFailure reason = (Left reason, originalState)
+    adjustWorld context = mapFst Right $ applyToWorld (ValidatedMoveCommand context) originalState
+    maybeCurrentRoom = (flip activeRoomForCommand) originalState =<< maybePlayerLocation
+    maybeNextRoom = (flip roomDefinitionForCommand) originalState =<< maybeNextLocation
+    maybeNextLocation = move direction <$> maybePlayerLocation
+    maybePlayerLocation = playerLocation <$> maybePlayer
+    maybePlayer = playerForCommand targetPlayerId originalState
+
+processCommand targetPlayerId LookAtCurrentRoom originalState =
+  either handleFailure roomDesc maybeCurrentRoom where
+    handleFailure reason = ((Left reason), originalState)
+    roomDesc room = ((Right (roomDescription room)), originalState)
+    maybeCurrentRoom = (flip roomDefinitionForCommand) originalState =<< maybePlayerLocation
+    maybePlayerLocation = playerLocation <$> maybePlayer
+    maybePlayer = playerForCommand targetPlayerId originalState
+
+processCommand targetPlayerId (Look direction) originalState =
+  either handleFailure roomDesc maybeRoom where
+    handleFailure reason = ((Left reason), originalState)
+    roomDesc room = ((Right (roomDescription room)), originalState)
+    maybeRoom = (flip roomDefinitionForCommand) originalState =<< maybeNextLocation
+    maybeNextLocation = move direction <$> maybePlayerLocation
+    maybePlayerLocation = playerLocation <$> maybePlayer
+    maybePlayer = playerForCommand targetPlayerId originalState
+
+activeRoomForCommand :: Coordinate -> GameState -> Either FailFeedback ActiveRoom
+activeRoomForCommand coord state = maybe (Left (NoSuchActiveRoom coord)) Right $ Map.lookup coord (activeRooms state)
+
+roomDefinitionForCommand :: Coordinate -> GameState -> Either FailFeedback RoomDefinition
+roomDefinitionForCommand coord state = maybe (Left (NoSuchRoom coord)) Right $ findRoomDefinition coord state
+
+playerForCommand :: PlayerId -> GameState -> Either FailFeedback Player
+playerForCommand player state = maybe (Left $ NoSuchPlayer player) Right $ Map.lookup player $ activePlayers state
+
+findRoomDefinition :: Coordinate -> GameState -> Maybe RoomDefinition
+findRoomDefinition coordinate state = Map.lookup coordinate (worldRooms (gameWorld state))
+
+applyToWorld :: ValidatedCommand -> GameState -> (String, GameState)
+applyToWorld (ValidatedMoveCommand context) originalState =
+  result where
+    result = ((roomDescription (mpContextNextRoomDefinition context)), newState)
+    newState = stateWithActiveRoom {
+      activePlayers = newActivePlayers,
+      activeRooms = newActiveRooms
+    }
+    stateWithActiveRoom = (snd ensureRoomActiveResult)
+    nextActiveRoom = (fst ensureRoomActiveResult)
+    ensureRoomActiveResult = ensureRoomActive (mpContextNextRoomDefinition context) originalState
+    newActivePlayers = Map.insert (playerId originalPlayer) newPlayer $ activePlayers originalState
+    newPlayer = originalPlayer { playerLocation = (mpContextNextLocation context) }
+    originalPlayer = (mpContextPlayer context)
+    newActiveRooms = updateLastRoom $ updateNewRoom (activeRooms originalState)
+    updateNewRoom = Map.insert (activeRoomCoordinate nextActiveRoom) (addPlayerToRoom (playerId originalPlayer) nextActiveRoom)
+    updateLastRoom = Map.insert (activeRoomCoordinate (mpContextLastRoom context)) (removePlayerFromRoom (playerId originalPlayer) (mpContextLastRoom context))
 
 sendCommand :: RunningWorld -> PlayerId -> Command -> IO (Either FailFeedback String)
 sendCommand world targetPlayerId command = withStateAndResult world $ RunningWorld.processCommand targetPlayerId command
-
-processCommand :: PlayerId -> Command -> GameState -> ((Either FailFeedback String), GameState)
-processCommand _ _ s = (Right "god", s)
---processCommand targetPlayerId (Move direction) state =
---  let maybePlayer = Map.lookup targetPlayerId (activePlayers state)
---      maybePlayerLocation = playerLocation <$> maybePlayer
---      maybeNextPlayerLocation = move direction <$> maybePlayerLocation
---      maybeCurrentRoom = ((flip Map.lookup) (activeRooms state)) <$> maybePlayerLocation
---      maybeNextRoom = (flip Map.lookup) (worldRooms (gameWorld state)) <$> maybeNextPlayerLocation
---      stateWithActiveRoom = ensure
---
---processCommand targetPlayerId (Look direction) state = (Right "Woop", state)
-
-
---sendCommand :: RunningWorld -> PlayerId -> Command -> IO String
---sendCommand (RunningWorld m) c =
---  do
---    (result, newState) <- ((handleCommand c) <$> takeMVar m)
---    putMVar m newState
----    return result
---
---handleCommand :: Command -> GameState -> (String, GameState)
---handleCommand command state@( GameState { gameSession = session, gameWorld = world }) =
---  either handleError handleSuccess $ processCommand command world session where
---    handleError err = (translateCommandError err, state)
---    handleSuccess (feedback, newSession) = (feedback, state { gameSession = newSession })
---
---translateCommandError :: FailFeedback -> String
---translateCommandError RoomDoesNotExist = "There is no room there, doofus"
---
-
--- WorldDefinition
-  -- Contains descriptions of rooms
-  -- The default starting location within that world
-  -- monsters, items, etc to be found on those monsters and descriptions of all of that
-
--- ActiveWorld
-  -- Contains room "instances" which are created on demand (when a player needs to go into the room)
-  -- This will have the effect of spawning anything in that room that might need spawning
-  -- We'll have a tick that goes through active instances and prunes any that haven't been used in a while
-  -- We'll have queued up actions in those worlds too and they'll be executed either on that tick or a different tick
-  -- Same tick will likely re-spawn monsters if a room has been active for too long for example
-
-

@@ -22,6 +22,7 @@ library
                     ,  RunningWorld
   build-depends:       base >= 4.7 && < 5
                      , containers
+                     , fgl
                      , directory
                      , aeson
                      , filepath
