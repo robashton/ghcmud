@@ -1,4 +1,7 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Main where
+
+import Web.Scotty
 
 import WorldDefinitionLoading
 import WorldDefinition
@@ -9,6 +12,7 @@ import RunningWorld
 
 import Control.Applicative ((<*>), empty)
 import Control.Monad (liftM)
+import Data.Monoid (mconcat)
 import Control.Concurrent
 
 startFailure :: FailFeedback -> IO()
@@ -27,8 +31,13 @@ main = either loadFailure startGame =<< loadDir "gaia/world"
 startGame :: WorldDefinition -> IO()
 startGame definition = do
   world <- createRunningWorld definition
-  addPlayerToWorld world
-  startInputLoop world
+  webserver world
+
+webserver :: RunningWorld -> IO ()
+webserver = scotty 3000 $ do
+  get "/:word" $ do
+    beam <- param "word"
+    html $ mconcat ["<h1>Scotty, ", beam, " me up!</h1>"]
 
 addPlayerToWorld :: RunningWorld -> IO PlayerId
 addPlayerToWorld game =
