@@ -6,7 +6,7 @@
 -- This module searches a directory for 'rooms' and returns a constructed 'World'
 -- with an automatically determined coordinate system based on traversing the 'rooms' in that world
 
-module Loader (
+module WorldDefinitionLoading (
   loadDir,
   WorldLoadFailure(..)
 ) where
@@ -103,10 +103,10 @@ processSiblingRoom currentRoom currentCoordinate direction builderState =
     nextRoom siblingRoomName = processRoom (move direction currentCoordinate) siblingRoomName builderState
 
 sibling :: Direction -> RawRoom -> Maybe String
-sibling West = Loader.west
-sibling East = Loader.east
-sibling South = Loader.south
-sibling North = Loader.north
+sibling West = WorldDefinitionLoading.west
+sibling East = WorldDefinitionLoading.east
+sibling South = WorldDefinitionLoading.south
+sibling North = WorldDefinitionLoading.north
 
 convertRoom :: RawRoom -> Coordinate -> RoomDefinition
 convertRoom RawRoom { description = roomDescription } roomId =

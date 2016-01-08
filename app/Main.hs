@@ -1,9 +1,10 @@
 module Main where
 
-import Loader
+import WorldDefinitionLoading
 import WorldDefinition
-import Session
-import Parser
+import CommandParsing
+
+import WorldInstance
 import RunningWorld
 
 import Control.Applicative ((<*>), empty)
@@ -40,7 +41,6 @@ addPlayerToWorld game =
        } in
     do
       addPlayerResult <- addPlayer game awesomePlayer
-      print (show addPlayerResult)
       return (playerId awesomePlayer)
 
 defaultPlayerId :: PlayerId
@@ -49,7 +49,7 @@ defaultPlayerId = PlayerId "bob"
 startInputLoop :: RunningWorld -> IO()
 startInputLoop game = (handleCommandResult game) =<< sendCommand game defaultPlayerId LookAtCurrentRoom
 
-handleCommandResult :: RunningWorld -> (Either FailFeedback String) -> IO()
+handleCommandResult :: RunningWorld -> (Either InstanceFailure String) -> IO()
 handleCommandResult game (Right result) = print result >> inputLoop game
 handleCommandResult game (Left result) = print (show result) >> inputLoop game
 

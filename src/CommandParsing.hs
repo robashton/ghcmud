@@ -1,10 +1,9 @@
-module Parser (
+module CommandParsing (
   parseCommand,
   ParseFailure(..)
 ) where
 
 import WorldDefinition
-import Session
 import Control.Applicative
 
 
