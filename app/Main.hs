@@ -3,6 +3,8 @@ module Main where
 
 import Web.Scotty
 
+import Data.Text.Lazy(pack,unpack)
+
 import WorldDefinitionLoading
 import WorldDefinition
 import CommandParsing
@@ -12,6 +14,7 @@ import RunningWorld
 
 import Control.Applicative ((<*>), empty)
 import Control.Monad (liftM)
+import Control.Monad.IO.Class (liftIO)
 import Data.Monoid (mconcat)
 import Control.Concurrent
 
@@ -33,24 +36,46 @@ startGame definition = do
   world <- createRunningWorld definition
   webserver world
 
-webserver :: RunningWorld -> IO ()
-webserver = scotty 3000 $ do
-  get "/:word" $ do
-    beam <- param "word"
-    html $ mconcat ["<h1>Scotty, ", beam, " me up!</h1>"]
+-- TODO: Code
+genericShitRequest :: String -> ActionM ()
+genericShitRequest msg = do 
+  html $ pack msg
 
-addPlayerToWorld :: RunningWorld -> IO PlayerId
-addPlayerToWorld game =
-  let awesomePlayer = Player {
-      playerId = defaultPlayerId,
+handleLogin :: RunningWorld -> ActionM()
+handleLogin world = do
+  user <- param "user"
+  addPlayerResult <- liftIO $ addPlayerToWorld (PlayerId $ unpack user) world
+  either addFailure addSuccess addPlayerResult where
+    addFailure _ = genericShitRequest "Bollocks user"
+    addSuccess _ = html $ "Player created"
+
+handleCommand :: RunningWorld -> ActionM()
+handleCommand world = do
+  command <- param "command"
+  either failParsedCommand sendParsedCommand $ parseCommand command where
+    failParsedCommand reason = genericShitRequest $ mconcat ["No parsy command: ", (show reason)]
+    sendParsedCommand cmd = do
+      user <- param "user" 
+      commandResult <- liftIO $ sendCommand world (PlayerId $ unpack user) cmd
+      either commandFailure commandSuccess commandResult
+    commandFailure why = genericShitRequest $ show why
+    commandSuccess result = html $ pack result
+
+webserver :: RunningWorld -> IO ()
+webserver world = scotty 3000 $ do
+  get "/login/:user" $ handleLogin world
+  post "/command/:user" $ handleCommand world
+
+addPlayerToWorld :: PlayerId -> RunningWorld -> IO (Either InstanceFailure GenericSuccess)
+addPlayerToWorld newPlayerId world =
+  addPlayer world awesomePlayer where
+    awesomePlayer = Player {
+      playerId = newPlayerId,
       playerHealth = 100,
       playerLevel = 999,
       playerExperience = 5,
       playerLocation = Coordinate 0 0
-       } in
-    do
-      addPlayerResult <- addPlayer game awesomePlayer
-      return (playerId awesomePlayer)
+      }
 
 defaultPlayerId :: PlayerId
 defaultPlayerId = PlayerId "bob"

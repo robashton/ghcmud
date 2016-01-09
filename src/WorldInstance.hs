@@ -36,6 +36,13 @@ data MovePlayerContext = MovePlayerContext {
   mpContextNextRoomDefinition :: RoomDefinition
 } deriving (Show)
 
+
+data DescribeRoomContext = DescribeRoomContext {
+  drContextActiveRoom :: ActiveRoom,
+  drContextRoomDefinition :: RoomDefinition
+} deriving (Show)
+
+
 newtype PlayerId = PlayerId String
   deriving (Show, Ord, Eq)
 
@@ -77,10 +84,12 @@ processCommand targetPlayerId (Move direction) originalState =
     maybePlayer = playerForCommand targetPlayerId originalState
 
 processCommand targetPlayerId LookAtCurrentRoom originalState =
-  either failure roomDesc maybeCurrentRoom where
+  either failure roomDesc context where
     failure reason = ((Left reason), originalState)
-    roomDesc room = ((Right (roomDescription room)), originalState)
-    maybeCurrentRoom = (flip roomDefinitionForCommand) originalState =<< maybePlayerLocation
+    roomDesc context = (Right $ describeCurrentRoom context, originalState)
+    context = DescribeRoomContext <$> maybeCurrentRoom <*> maybeRoomDefinition
+    maybeCurrentRoom = (flip activeRoomForCommand) originalState =<< maybePlayerLocation
+    maybeRoomDefinition = (flip roomDefinitionForCommand) originalState =<< maybePlayerLocation
     maybePlayerLocation = playerLocation <$> maybePlayer
     maybePlayer = playerForCommand targetPlayerId originalState
 
@@ -122,6 +131,15 @@ addPlayerToRoom targetPlayerId room =
 removePlayerFromRoom :: PlayerId -> ActiveRoom -> ActiveRoom
 removePlayerFromRoom targetPlayerId room =
   room { activeRoomPlayers = Set.delete targetPlayerId (activeRoomPlayers room) }
+
+
+describeCurrentRoom :: DescribeRoomContext -> String
+describeCurrentRoom context = 
+  mconcat [
+    (roomDescription (drContextRoomDefinition context)),
+    "\n",
+    "Other players here: ", (show (activeRoomPlayers (drContextActiveRoom context)))
+  ]
 
 applyCommandToWorld :: ValidatedCommand -> WorldInstance -> (String, WorldInstance)
 applyCommandToWorld (ValidatedMoveCommand context) originalState =

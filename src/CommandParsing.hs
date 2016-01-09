@@ -9,7 +9,8 @@ import Control.Applicative
 
 import Data.Char (toLower)
 
-data ParseFailure = ShiteCommand
+data ParseFailure = EmptyCommand
+                  | UnknownCommand String
                   | ParseFailure String
                   deriving (Show)
 
@@ -32,16 +33,16 @@ isLookCommand "scan" = True
 isLookCommand _ = False
 
 readCommand :: [String] -> Either ParseFailure Command
-readCommand [] = Left ShiteCommand
-readCommand (cmd:xs)
+readCommand [] = Left EmptyCommand
+readCommand w@(cmd:xs)
   | isMoveCommand(cmd) = Move <$> parseDirection xs
   | isLookCommand(cmd) = case xs of
                            [] -> Right LookAtCurrentRoom
                            _ -> Look <$> parseDirection xs
-  | otherwise = Left ShiteCommand
+  | otherwise = Left $ UnknownCommand $ mconcat w
 
 parseDirection :: [String] -> Either ParseFailure Direction
-parseDirection [] = Left ShiteCommand
+parseDirection [] = Left $ ParseFailure "no direction specified"
 parseDirection ("west":_) = Right West
 parseDirection ("east":_) = Right East
 parseDirection ("north":_) = Right North

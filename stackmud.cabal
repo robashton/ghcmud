@@ -40,6 +40,8 @@ executable stackmud-exe
                      , containers
                      , aeson
                      , scotty
+                     , text
+                     , transformers
   default-language:    Haskell2010
 
 test-suite stackmud-test
