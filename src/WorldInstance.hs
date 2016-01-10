@@ -16,6 +16,7 @@ import Control.Monad
 import Data.Either
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import Data.List
 import Data.Graph.Inductive.Query.Monad (mapFst)
 
 data ActiveRoom = ActiveRoom {
@@ -36,15 +37,17 @@ data MovePlayerContext = MovePlayerContext {
   mpContextNextRoomDefinition :: RoomDefinition
 } deriving (Show)
 
-
 data DescribeRoomContext = DescribeRoomContext {
+  drContextPlayerId :: PlayerId,
   drContextActiveRoom :: ActiveRoom,
   drContextRoomDefinition :: RoomDefinition
 } deriving (Show)
 
-
 newtype PlayerId = PlayerId String
-  deriving (Show, Ord, Eq)
+  deriving (Ord, Eq)
+
+instance Show PlayerId where
+  show (PlayerId value) = value
 
 data Player = Player {
   playerId :: PlayerId,
@@ -87,7 +90,7 @@ processCommand targetPlayerId LookAtCurrentRoom originalState =
   either failure roomDesc context where
     failure reason = ((Left reason), originalState)
     roomDesc context = (Right $ describeCurrentRoom context, originalState)
-    context = DescribeRoomContext <$> maybeCurrentRoom <*> maybeRoomDefinition
+    context = DescribeRoomContext targetPlayerId <$> maybeCurrentRoom <*> maybeRoomDefinition
     maybeCurrentRoom = (flip activeRoomForCommand) originalState =<< maybePlayerLocation
     maybeRoomDefinition = (flip roomDefinitionForCommand) originalState =<< maybePlayerLocation
     maybePlayerLocation = playerLocation <$> maybePlayer
@@ -132,16 +135,21 @@ removePlayerFromRoom :: PlayerId -> ActiveRoom -> ActiveRoom
 removePlayerFromRoom targetPlayerId room =
   room { activeRoomPlayers = Set.delete targetPlayerId (activeRoomPlayers room) }
 
-
 describeCurrentRoom :: DescribeRoomContext -> String
 describeCurrentRoom context = 
   mconcat [
     (roomDescription (drContextRoomDefinition context)),
-    "\n",
-    "Other players here: ", (show (activeRoomPlayers (drContextActiveRoom context)))
+    describeOtherPlayers (Set.delete (drContextPlayerId context) (activeRoomPlayers (drContextActiveRoom context)))
   ]
 
-applyCommandToWorld :: ValidatedCommand -> WorldInstance -> (String, WorldInstance)
+describeOtherPlayers :: (Set.Set PlayerId) -> String
+describeOtherPlayers players = 
+  case Set.toList players of
+    [] -> ""
+    [player] -> mconcat ["\n", (show player), " is stood nearby" ]
+    players -> mconcat $ (intersperse "/" $ map show players) ++ [" etc are stood nearby"]
+
+
 applyCommandToWorld (ValidatedMoveCommand context) originalState =
   result where
     result = ((roomDescription (mpContextNextRoomDefinition context)), newState)

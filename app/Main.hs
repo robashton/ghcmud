@@ -18,6 +18,8 @@ import Control.Monad.IO.Class (liftIO)
 import Data.Monoid (mconcat)
 import Control.Concurrent
 
+import Network.Wai.Middleware.Static
+
 startFailure :: FailFeedback -> IO()
 startFailure RoomDoesNotExist = print ("There is no room to start in")
 
@@ -63,8 +65,10 @@ handleCommand world = do
 
 webserver :: RunningWorld -> IO ()
 webserver world = scotty 3000 $ do
+  get "/" $ file "www/index.html"
   get "/login/:user" $ handleLogin world
   post "/command/:user" $ handleCommand world
+  middleware $ staticPolicy (noDots >-> addBase "www")
 
 addPlayerToWorld :: PlayerId -> RunningWorld -> IO (Either InstanceFailure GenericSuccess)
 addPlayerToWorld newPlayerId world =
