@@ -6,7 +6,7 @@
 -- This module searches a directory for 'rooms' and returns a constructed 'World'
 -- with an automatically determined coordinate system based on traversing the 'rooms' in that world
 
-module Loader (
+module WorldDefinitionLoading (
   loadDir,
   WorldLoadFailure(..)
 ) where
@@ -92,10 +92,9 @@ processRoom coord roomId builderState@(BuilderState (output, input)) =
         unchanged _ = Right builderState
         unreferenced = maybe notFound unchanged locatedRoom
         inputWithoutRoom = Map.delete roomId input
-        -- This isn't that nice :(
-        addRoom room = let outputWithRoom = Map.insert coord (convertRoom room coord) output
-          in BuilderState (outputWithRoom, inputWithoutRoom)
-        nextRooms room = (foldrM (processSiblingRoom room coord) (addRoom room) [South, West, East, North] :: Either WorldLoadFailure BuilderState)
+        nextRooms room = foldrM (processSiblingRoom room coord) (addRoom room) [South, West, East, North]
+        addRoom room = BuilderState (outputWithRoom, inputWithoutRoom) where
+          outputWithRoom = Map.insert coord (convertRoom room coord) output
 
 processSiblingRoom :: RawRoom -> Coordinate -> Direction -> BuilderState -> Either WorldLoadFailure BuilderState
 processSiblingRoom currentRoom currentCoordinate direction builderState =
@@ -104,10 +103,10 @@ processSiblingRoom currentRoom currentCoordinate direction builderState =
     nextRoom siblingRoomName = processRoom (move direction currentCoordinate) siblingRoomName builderState
 
 sibling :: Direction -> RawRoom -> Maybe String
-sibling West = Loader.west
-sibling East = Loader.east
-sibling South = Loader.south
-sibling North = Loader.north
+sibling West = WorldDefinitionLoading.west
+sibling East = WorldDefinitionLoading.east
+sibling South = WorldDefinitionLoading.south
+sibling North = WorldDefinitionLoading.north
 
 convertRoom :: RawRoom -> Coordinate -> RoomDefinition
 convertRoom RawRoom { description = roomDescription } roomId =

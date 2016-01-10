@@ -1,13 +1,13 @@
 module WorldDefinition (
   move,
   findRoom,
-  Player(..),
   Monster(..),
   RoomDefinition(..),
   WorldDefinition(..),
   Direction(..),
   Coordinate(..),
-  FailFeedback(..)
+  FailFeedback(..),
+  Command(..)
 ) where
 
 import qualified Data.Map as Map
@@ -17,15 +17,17 @@ data Direction = West | North | East | South
   deriving (Show, Eq)
 
 data FailFeedback = RoomDoesNotExist
+  deriving (Show)
+
+
+data Command = Move Direction
+             | Look Direction
+             | LookAtCurrentRoom
+   deriving (Show, Eq)
 
 data Coordinate = Coordinate Integer Integer
   deriving (Show, Eq, Ord)
 
-data Player = Player {
-  playerHealth :: Integer,
-  playerLevel :: Integer,
-  playerExperience :: Integer
-  } deriving (Show)
 
 data Monster = Monster {
   monsterName :: String,
