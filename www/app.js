@@ -26,10 +26,9 @@ ready(function() {
       function sendCommand(command) {
         request.post({ 
             uri: '/command/' + username,
-            body: "command=" + command,
-            encoding: "application/x-www-form-urlencoded"
+            form: {command: command}
           }, function(err, two, three) {
-          console.log(err, two, three)
+          addFeedback(two.responseText)
           getInput()
         })
       }
