@@ -38,6 +38,13 @@ startGame definition = do
   world <- createRunningWorld definition
   webserver world
 
+webserver :: RunningWorld -> IO ()
+webserver world = scotty 3000 $ do
+  get "/" $ file "www/index.html"
+  get "/login/:user" $ handleLogin world
+  post "/command/:user" $ handleCommand world
+  middleware $ staticPolicy (noDots >-> addBase "www")
+
 -- TODO: Code
 genericShitRequest :: String -> ActionM ()
 genericShitRequest msg = do 
@@ -63,12 +70,6 @@ handleCommand world = do
     commandFailure why = genericShitRequest $ show why
     commandSuccess result = html $ pack result
 
-webserver :: RunningWorld -> IO ()
-webserver world = scotty 3000 $ do
-  get "/" $ file "www/index.html"
-  get "/login/:user" $ handleLogin world
-  post "/command/:user" $ handleCommand world
-  middleware $ staticPolicy (noDots >-> addBase "www")
 
 addPlayerToWorld :: PlayerId -> RunningWorld -> IO (Either InstanceFailure GenericSuccess)
 addPlayerToWorld newPlayerId world =
