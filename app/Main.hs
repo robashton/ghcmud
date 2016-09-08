@@ -54,9 +54,9 @@ handleLogin :: RunningWorld -> ActionM()
 handleLogin world = do
   user <- param "user"
   addPlayerResult <- liftIO $ addPlayerToWorld (PlayerId $ unpack user) world
-  either addFailure addSuccess addPlayerResult where
+  either addFailure (addSuccess user) addPlayerResult where
     addFailure _ = genericShitRequest "Bollocks user"
-    addSuccess _ = html $ "Player created"
+    addSuccess user = \_ -> text $ user
 
 handleCommand :: RunningWorld -> ActionM()
 handleCommand world = do
@@ -68,7 +68,7 @@ handleCommand world = do
       commandResult <- liftIO $ sendCommand world (PlayerId $ unpack user) cmd
       either commandFailure commandSuccess commandResult
     commandFailure why = genericShitRequest $ show why
-    commandSuccess result = html $ pack result
+    commandSuccess result = text $ pack result
 
 
 addPlayerToWorld :: PlayerId -> RunningWorld -> IO (Either InstanceFailure GenericSuccess)

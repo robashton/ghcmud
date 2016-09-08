@@ -8818,52 +8818,16 @@ var _evancz$elm_http$Http$post = F3(
 			decoder,
 			A2(_evancz$elm_http$Http$send, _evancz$elm_http$Http$defaultSettings, request));
 	});
-var _user$project$Api$promoteError = function (rawError) {
-	var _p0 = rawError;
-	if (_p0.ctor === 'RawTimeout') {
-		return _evancz$elm_http$Http$Timeout;
-	} else {
-		return _evancz$elm_http$Http$NetworkError;
-	}
-};
-var _user$project$Api$mapResponse = function (response) {
-	var _p1 = response.value;
-	if (_p1.ctor === 'Blob') {
-		return '';
-	} else {
-		return _p1._0;
-	}
-};
-var _user$project$Api$mapCommandResult = function (t) {
+var _user$project$Api$sendCommand = function (command) {
 	return A2(
-		_elm_lang$core$Task$mapError,
-		_user$project$Api$promoteError,
-		A2(_elm_lang$core$Task$map, _user$project$Api$mapResponse, t));
+		_evancz$elm_http$Http$get,
+		_elm_lang$core$Json_Decode$string,
+		A2(_elm_lang$core$Basics_ops['++'], 'command/', command));
 };
-var _user$project$Api$sendCommand = F2(
-	function (username, command) {
-		var $default = _evancz$elm_http$Http$defaultSettings;
-		return _user$project$Api$mapCommandResult(
-			A2(
-				_evancz$elm_http$Http$send,
-				_elm_lang$core$Native_Utils.update(
-					$default,
-					{
-						desiredResponseType: _elm_lang$core$Maybe$Just('text/plain')
-					}),
-				{
-					verb: 'POST',
-					headers: _elm_lang$core$Native_List.fromArray(
-						[
-							{ctor: '_Tuple2', _0: 'Content-Type', _1: 'application/x-www-form-urlencoded'}
-						]),
-					url: A2(_elm_lang$core$Basics_ops['++'], 'command/', username),
-					body: _evancz$elm_http$Http$string(
-						A2(_elm_lang$core$Basics_ops['++'], 'command=', command))
-				}));
-	});
 var _user$project$Api$login = function (username) {
-	return _evancz$elm_http$Http$getString(
+	return A2(
+		_evancz$elm_http$Http$get,
+		_elm_lang$core$Json_Decode$string,
 		A2(_elm_lang$core$Basics_ops['++'], 'login/', username));
 };
 var _user$project$Api$CommandResult = {};
@@ -8940,31 +8904,9 @@ var _user$project$Bootstrap$container = function (children) {
 			]),
 		children);
 };
-var _user$project$HtmlUtil$onKeyPress = function (tagger) {
-	return A2(
-		_elm_lang$html$Html_Events$on,
-		'keypress',
-		A2(_elm_lang$core$Json_Decode$map, tagger, _elm_lang$html$Html_Events$keyCode));
-};
-var _user$project$Main$historyItem = function (model) {
-	return A2(
-		_elm_lang$html$Html$li,
-		_elm_lang$core$Native_List.fromArray(
-			[]),
-		_elm_lang$core$Native_List.fromArray(
-			[
-				_elm_lang$html$Html$text(model)
-			]));
-};
 var _user$project$Main$historyView = function (model) {
 	return _elm_lang$core$Native_List.fromArray(
-		[
-			A2(
-			_elm_lang$html$Html$ul,
-			_elm_lang$core$Native_List.fromArray(
-				[]),
-			A2(_elm_lang$core$List$map, _user$project$Main$historyItem, model.history))
-		]);
+		[]);
 };
 var _user$project$Main$subscriptions = function (model) {
 	return _elm_lang$core$Platform_Sub$none;
@@ -8983,16 +8925,10 @@ var _user$project$Main$Model = F3(
 	function (a, b, c) {
 		return {username: a, history: b, command: c};
 	});
-var _user$project$Main$MaybeCommandReturn = function (a) {
-	return {ctor: 'MaybeCommandReturn', _0: a};
-};
 var _user$project$Main$LoginSucceeded = function (a) {
 	return {ctor: 'LoginSucceeded', _0: a};
 };
 var _user$project$Main$CommandSubmitted = {ctor: 'CommandSubmitted'};
-var _user$project$Main$MaybeLoginReturn = function (a) {
-	return {ctor: 'MaybeLoginReturn', _0: a};
-};
 var _user$project$Main$LoginRequested = {ctor: 'LoginRequested'};
 var _user$project$Main$CommandResult = function (a) {
 	return {ctor: 'CommandResult', _0: a};
@@ -9019,9 +8955,7 @@ var _user$project$Main$loginView = function (model) {
 					_elm_lang$html$Html_Attributes$value(model.command),
 					_elm_lang$html$Html_Attributes$class('form-control'),
 					_elm_lang$html$Html_Attributes$id('login'),
-					_elm_lang$html$Html_Events$onInput(_user$project$Main$CommandChanged),
-					_user$project$HtmlUtil$onKeyPress(_user$project$Main$MaybeLoginReturn),
-					_elm_lang$html$Html_Attributes$autofocus(true)
+					_elm_lang$html$Html_Events$onInput(_user$project$Main$CommandChanged)
 				]),
 			_elm_lang$core$Native_List.fromArray(
 				[])),
@@ -9029,12 +8963,11 @@ var _user$project$Main$loginView = function (model) {
 			_elm_lang$html$Html$button,
 			_elm_lang$core$Native_List.fromArray(
 				[
+					_elm_lang$html$Html_Attributes$title('login plzkthx'),
 					_elm_lang$html$Html_Events$onClick(_user$project$Main$LoginRequested)
 				]),
 			_elm_lang$core$Native_List.fromArray(
-				[
-					_elm_lang$html$Html$text('login plzkthx')
-				]))
+				[]))
 		]);
 };
 var _user$project$Main$commandView = function (model) {
@@ -9056,9 +8989,7 @@ var _user$project$Main$commandView = function (model) {
 					_elm_lang$html$Html_Attributes$value(model.command),
 					_elm_lang$html$Html_Attributes$class('form-control'),
 					_elm_lang$html$Html_Attributes$id('command'),
-					_elm_lang$html$Html_Events$onInput(_user$project$Main$CommandChanged),
-					_user$project$HtmlUtil$onKeyPress(_user$project$Main$MaybeCommandReturn),
-					_elm_lang$html$Html_Attributes$autofocus(true)
+					_elm_lang$html$Html_Events$onInput(_user$project$Main$CommandChanged)
 				]),
 			_elm_lang$core$Native_List.fromArray(
 				[])),
@@ -9066,12 +8997,11 @@ var _user$project$Main$commandView = function (model) {
 			_elm_lang$html$Html$button,
 			_elm_lang$core$Native_List.fromArray(
 				[
+					_elm_lang$html$Html_Attributes$title('Send'),
 					_elm_lang$html$Html_Events$onClick(_user$project$Main$CommandSubmitted)
 				]),
 			_elm_lang$core$Native_List.fromArray(
-				[
-					_elm_lang$html$Html$text('Send')
-				]))
+				[]))
 		]);
 };
 var _user$project$Main$view = function (model) {
@@ -9131,14 +9061,13 @@ var _user$project$Main$sendLoginRequest = function (username) {
 		_user$project$Main$LoginSucceeded,
 		_user$project$Api$login(username));
 };
-var _user$project$Main$sendCommand = F2(
-	function (username, command) {
-		return A3(
-			_elm_lang$core$Task$perform,
-			_user$project$Main$FetchFail,
-			_user$project$Main$CommandResult,
-			A2(_user$project$Api$sendCommand, username, command));
-	});
+var _user$project$Main$sendCommand = function (command) {
+	return A3(
+		_elm_lang$core$Task$perform,
+		_user$project$Main$FetchFail,
+		_user$project$Main$CommandResult,
+		_user$project$Api$sendCommand(command));
+};
 var _user$project$Main$update = F2(
 	function (msg, model) {
 		var _p1 = msg;
@@ -9188,16 +9117,9 @@ var _user$project$Main$update = F2(
 					_0: _elm_lang$core$Native_Utils.update(
 						model,
 						{command: ''}),
-					_1: function () {
-						var _p2 = model.username;
-						if (_p2.ctor === 'Just') {
-							return A2(_user$project$Main$sendCommand, _p2._0, model.command);
-						} else {
-							return _elm_lang$core$Platform_Cmd$none;
-						}
-					}()
+					_1: _user$project$Main$sendCommand(model.command)
 				};
-			case 'LoginSucceeded':
+			default:
 				return {
 					ctor: '_Tuple2',
 					_0: _elm_lang$core$Native_Utils.update(
@@ -9207,39 +9129,6 @@ var _user$project$Main$update = F2(
 						}),
 					_1: _elm_lang$core$Platform_Cmd$none
 				};
-			case 'MaybeCommandReturn':
-				var _p3 = _p1._0;
-				if (_p3 === 13) {
-					return {
-						ctor: '_Tuple2',
-						_0: _elm_lang$core$Native_Utils.update(
-							model,
-							{command: ''}),
-						_1: function () {
-							var _p4 = model.username;
-							if (_p4.ctor === 'Just') {
-								return A2(_user$project$Main$sendCommand, _p4._0, model.command);
-							} else {
-								return _elm_lang$core$Platform_Cmd$none;
-							}
-						}()
-					};
-				} else {
-					return {ctor: '_Tuple2', _0: model, _1: _elm_lang$core$Platform_Cmd$none};
-				}
-			default:
-				var _p5 = _p1._0;
-				if (_p5 === 13) {
-					return {
-						ctor: '_Tuple2',
-						_0: _elm_lang$core$Native_Utils.update(
-							model,
-							{command: ''}),
-						_1: _user$project$Main$sendLoginRequest(model.command)
-					};
-				} else {
-					return {ctor: '_Tuple2', _0: model, _1: _elm_lang$core$Platform_Cmd$none};
-				}
 		}
 	});
 var _user$project$Main$main = {

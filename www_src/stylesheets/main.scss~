@@ -1,0 +1,29 @@
+@import 'ui';
+
+ui-app > ui-container {
+  padding-top: 60px;
+  max-width: 900px;
+  margin: 0 auto;
+
+  div {
+    font-size: 30px;
+    margin-bottom: 30px;
+
+    span {
+      margin-right: 10px;
+    }
+  }
+}
+
+dl {
+   width: 65%;
+}
+
+dt {
+   float: left;
+}
+
+dd {
+   float: right;
+}
+
